@@ -1,22 +1,21 @@
-// index.js
+require('dotenv').config(); // Load environment variables first
 
-require('dotenv').config();
-const logger = require('./modules/logger');
-const botModule = require('./modules/bot');
-const schedulerModule = require('./modules/scheduler');
+const { sequelize } = require('./models/index'); // Import Sequelize instance
+const { startBot } = require('./modules/bot'); // Import the bot starter function
+const logger = require('./modules/logger'); // Import logger
 
-// Start the Telegram bot
-botModule.startBot();
+const initialize = async () => {
+  try {
+    // Wait for Sequelize to sync models
+    await sequelize.sync();
+    logger.info('Database synchronized successfully.');
 
-// Start the scheduler
-schedulerModule.startScheduler();
+    // Start the Telegram bot
+    startBot();
+  } catch (error) {
+    logger.error('Initialization failed:', error);
+    process.exit(1); // Exit the process with failure
+  }
+};
 
-// Handle uncaught exceptions and rejections
-process.on('uncaughtException', (error) => {
-  logger.error(`Uncaught Exception: ${error.message}`);
-  logger.error(error.stack);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+initialize();

@@ -1,0 +1,17 @@
+{
+    "welcome": "سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.",
+    "setup_prompt_origin": "لطفاً مبدا را انتخاب کنید:",
+    "setup_prompt_destination": "لطفاً مقصد را انتخاب کنید:",
+    "setup_prompt_adult_count": "لطفاً تعداد نفرات را انتخاب کنید:",
+    "setup_prompt_departure_date": "تاریخ حرکت به صورت خودکار تنظیم شد.",
+    "setup_prompt_min_amount": "لطفاً مبلغ حداقل مورد نظر را به ریال وارد کنید (مثال: 30000000):",
+    "confirmation": "⚙️ تنظیمات شما به‌صورت زیر ذخیره شد:\n۱- مبدا :‌ {{origin}}\n۲- مقصد: {{destination}}\n۳- تعداد نفرات: {{adultCount}}\n۴- تاریخ حرکت: {{departureDate}}\n۵- مبلغ حداقل: {{minAmount}} IRR",
+    "current_settings": "⚙️ تنظیمات فعلی:\n۱- مبدا :‌ {{origin}}\n۲- مقصد: {{destination}}\n۳- تعداد نفرات: {{adultCount}}\n۴- تاریخ حرکت: {{departureDate}}\n۵- مبلغ حداقل: {{minAmount}} IRR",
+    "invalid_amount": "مبلغ نامعتبر است. لطفاً یک عدد مثبت وارد کنید.",
+    "help_text": "دستورات موجود:\n/Setup - تنظیم هشدار قیمت بلیط هواپیما\n/Settings - مشاهده تنظیمات فعلی",
+    "menu_main_menu": "لطفاً یک گزینه را انتخاب کنید:",
+    "menu_setup": "تنظیم هشدار",
+    "menu_settings": "مشاهده تنظیمات",
+    "menu_help": "راهنما",
+    "error_invalid_option": "گزینه نامعتبر است. لطفاً دوباره تلاش کنید."
+  }  

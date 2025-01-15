@@ -1,23 +1,24 @@
 // modules/logger.js
 
-const winston = require('winston');
-const moment = require('moment-timezone');
+const { createLogger, format, transports } = require('winston');
+const path = require('path');
 
-// Define custom format to include Tehran time
-const customFormat = winston.format.printf(({ level, message }) => {
-  const timestamp = moment().tz('Asia/Tehran').format('YYYY-MM-DD HH:mm:ss');
-  return `${timestamp} [${level.toUpperCase()}]: ${message}`;
-});
+// Define the log format
+const logFormat = format.combine(
+  format.timestamp({
+    format: 'YYYY-MM-DD HH:mm:ss'
+  }),
+  format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
+);
 
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    customFormat
-  ),
+// Create the logger
+const logger = createLogger({
+  level: 'info',
+  format: logFormat,
   transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'app.log' })
-  ],
+    new transports.File({ filename: path.join(__dirname, '..', 'bot.log') }),
+    new transports.Console()
+  ]
 });
 
 module.exports = logger;

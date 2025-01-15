@@ -1,0 +1,92 @@
+2025-01-15 02:45:07 [INFO]: Database synchronized successfully.
+2025-01-15 02:45:08 [INFO]: Received update: {"update_id":680892987,"message":{"message_id":696,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736890030,"text":"/config","entities":[{"offset":0,"length":7,"type":"bot_command"}]}}
+2025-01-15 02:45:08 [INFO]: Received update: {"update_id":680892988,"my_chat_member":{"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"date":1736894588,"old_chat_member":{"user":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"status":"member"},"new_chat_member":{"user":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"status":"kicked","until_date":0}}}
+2025-01-15 02:45:08 [INFO]: Received update: {"update_id":680892989,"my_chat_member":{"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"date":1736894594,"old_chat_member":{"user":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"status":"kicked","until_date":0},"new_chat_member":{"user":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"status":"member"}}}
+2025-01-15 02:45:08 [INFO]: Received update: {"update_id":680892990,"message":{"message_id":697,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736894594,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+2025-01-15 02:46:00 [INFO]: Bot stopped gracefully.
+2025-01-15 02:46:08 [INFO]: Database synchronized successfully.
+2025-01-15 02:46:32 [INFO]: Bot stopped gracefully.
+2025-01-15 02:46:33 [INFO]: Telegram bot started successfully.
+2025-01-15 02:46:34 [INFO]: Database synchronized successfully.
+2025-01-15 02:49:38 [INFO]: Bot stopped gracefully.
+2025-01-15 02:49:39 [INFO]: Telegram bot started successfully.
+2025-01-15 02:49:40 [INFO]: Database synchronized successfully.
+2025-01-15 02:51:42 [INFO]: Received update: {"update_id":680892991,"message":{"message_id":700,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736896902,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+2025-01-15 02:51:42 [ERROR]: Error creating/updating user: column "is_bot" does not exist
+2025-01-15 02:52:19 [INFO]: Bot stopped gracefully.
+2025-01-15 02:52:20 [INFO]: Telegram bot started successfully.
+2025-01-15 02:52:42 [INFO]: Database synchronized successfully.
+2025-01-15 02:54:50 [INFO]: Bot stopped gracefully.
+2025-01-15 02:54:58 [INFO]: Database synchronized successfully.
+2025-01-15 02:57:59 [INFO]: Bot stopped gracefully.
+2025-01-15 02:58:00 [INFO]: Telegram bot started successfully.
+2025-01-15 02:58:01 [INFO]: Database synchronized successfully.
+2025-01-15 02:58:21 [INFO]: Received update: {"update_id":680892992,"message":{"message_id":702,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736897301,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+2025-01-15 02:58:21 [ERROR]: Error creating/updating user: column "is_bot" does not exist
+2025-01-15 03:00:09 [INFO]: Bot stopped gracefully.
+2025-01-15 03:00:09 [INFO]: Telegram bot started successfully.
+2025-01-15 03:00:19 [INFO]: Database synchronized successfully.
+2025-01-15 03:00:40 [INFO]: Bot stopped gracefully.
+2025-01-15 03:00:44 [INFO]: Database synchronized successfully.
+2025-01-15 03:02:29 [INFO]: Bot stopped gracefully.
+2025-01-15 03:02:30 [INFO]: Telegram bot started successfully.
+2025-01-15 03:09:11 [INFO]: Database synchronized successfully.
+2025-01-15 03:09:11 [ERROR]: Error syncing models: column "is_bot" of relation "users" contains null values
+2025-01-15 03:10:07 [INFO]: Bot stopped gracefully.
+2025-01-15 03:10:08 [INFO]: Telegram bot started successfully.
+2025-01-15 03:10:08 [INFO]: Database synchronized successfully.
+2025-01-15 03:10:50 [INFO]: Received update: {"update_id":680892993,"message":{"message_id":704,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736898050,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+2025-01-15 03:11:35 [INFO]: Received update: {"update_id":680892994,"callback_query":{"id":"3663953575790812704","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":705,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736898050,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:11:35 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:11:35 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:11:35 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:11:35 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:11:35 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:20 [INFO]: Received update: {"update_id":680892995,"callback_query":{"id":"3663953574250302720","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":705,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736898050,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:35:20 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:20 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:20 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:20 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:20 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:35:45 [INFO]: Received update: {"update_id":680892996,"message":{"message_id":708,"from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+2025-01-15 03:36:03 [INFO]: Received update: {"update_id":680892997,"callback_query":{"id":"3663953578088252745","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":709,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:36:03 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:36:03 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:36:03 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:36:03 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:36:03 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:37:24 [INFO]: Received update: {"update_id":680892998,"callback_query":{"id":"3663953575146105374","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":709,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:37:24 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:37:24 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:37:24 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:37:24 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:37:24 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:38:33 [INFO]: Bot stopped gracefully.
+2025-01-15 03:38:34 [INFO]: Telegram bot started successfully.
+2025-01-15 03:38:35 [INFO]: Database synchronized successfully.
+2025-01-15 03:38:59 [INFO]: Received update: {"update_id":680892999,"callback_query":{"id":"3663953575535014324","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":709,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:38:59 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:38:59 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:38:59 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:38:59 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:38:59 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:43:30 [INFO]: Bot stopped gracefully.
+2025-01-15 03:43:31 [INFO]: Telegram bot started successfully.
+2025-01-15 03:43:33 [INFO]: Database synchronized successfully.
+2025-01-15 03:43:38 [INFO]: Received update: {"update_id":680893000,"callback_query":{"id":"3663953578094290992","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":709,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:43:38 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:43:38 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:43:38 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:43:38 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:43:38 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:56:22 [INFO]: Bot stopped gracefully.
+2025-01-15 03:56:23 [INFO]: Telegram bot started successfully.
+2025-01-15 03:56:24 [INFO]: Database synchronized successfully.
+2025-01-15 03:56:24 [ERROR]: Failed to launch bot: request to https://api.telegram.org/bot7544080155:[REDACTED]/getMe failed, reason: 
+2025-01-15 03:56:36 [INFO]: Database synchronized successfully.
+2025-01-15 03:56:55 [INFO]: Received update: {"update_id":680893001,"callback_query":{"id":"3663953577327401029","from":{"id":5148047965,"is_bot":false,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","language_code":"en"},"message":{"message_id":709,"from":{"id":7544080155,"is_bot":true,"first_name":"TikcetAlerting ✈️","username":"ticketalerting_bot"},"chat":{"id":5148047965,"first_name":"Seyed Ali","last_name":"Jafari","username":"seyedaliij","type":"private"},"date":1736899545,"text":"سلام! برای تنظیم هشدار قیمت بلیط هواپیما از دکمه‌های زیر استفاده کنید.","reply_markup":{"inline_keyboard":[[{"text":"تنظیم هشدار","callback_data":"menu_setup"}],[{"text":"مشاهده تنظیمات","callback_data":"menu_settings"}],[{"text":"راهنما","callback_data":"menu_help"}]]}},"chat_instance":"-2939792401302841172","data":"menu_setup"}}
+2025-01-15 03:56:55 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:56:55 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:56:55 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:56:55 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer
+2025-01-15 03:56:55 [ERROR]: Error updating config for user 5148047965: value "5148047965" is out of range for type integer

@@ -24,7 +24,7 @@
     "destination": "KIH",
     "adultCount": 2,
     "departureDate": "2025-01-15",
-    "minAmount": 2000000,
+    "minAmount": 20000000,
     "selectedYear": "2025",
     "selectedMonth": "01",
     "selectedDay": "10"

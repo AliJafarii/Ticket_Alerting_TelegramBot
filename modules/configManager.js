@@ -1,56 +1,65 @@
 // modules/configManager.js
 
-const fs = require('fs');
-const path = require('path');
+const { Config, User, Origin, Destination } = require('../models');
 const logger = require('./logger');
 
-const GROUPS_CONFIG_PATH = path.join(__dirname, '..', 'config', 'groups.json');
+/**
+ * Update group settings in memory or database
+ * For simplicity, we'll use the database directly.
+ */
 
-const loadGroupConfigs = () => {
-  try {
-    if (!fs.existsSync(GROUPS_CONFIG_PATH)) {
-      fs.writeFileSync(GROUPS_CONFIG_PATH, JSON.stringify({}));
-    }
-    const data = fs.readFileSync(GROUPS_CONFIG_PATH);
-    return JSON.parse(data);
-  } catch (error) {
-    logger.error(`Error loading group configurations: ${error.message}`);
-    return {};
-  }
-};
-
-const saveGroupConfigs = (configs) => {
-  try {
-    fs.writeFileSync(GROUPS_CONFIG_PATH, JSON.stringify(configs, null, 2));
-    logger.info('Group configurations updated.');
-  } catch (error) {
-    logger.error(`Error saving group configurations: ${error.message}`);
-  }
-};
-
-const updateGroupSetting = (groupId, key, value) => {
-  const configs = loadGroupConfigs();
-  if (!configs[groupId]) {
-    configs[groupId] = {
-      origin: '',
-      destination: '',
+/**
+ * Get or create a Config object for a user
+ * @param {number} userId - Telegram user ID
+ * @returns {object} - Config instance
+ */
+const getOrCreateConfig = async (userId) => {
+  let config = await Config.findOne({ where: { userId } });
+  if (!config) {
+    config = await Config.create({
+      userId,
+      originId: '',
+      destinationId: '',
       adultCount: 1,
       departureDate: '',
       minAmount: 0
-    };
+    });
   }
-  configs[groupId][key] = value;
-  saveGroupConfigs(configs);
+  return config;
 };
 
-const getGroupConfig = (groupId) => {
-  const configs = loadGroupConfigs();
-  return configs[groupId] || null;
+/**
+ * Update a specific field in the user's config
+ * @param {number} userId - Telegram user ID
+ * @param {string} field - Field name to update
+ * @param {any} value - New value
+ */
+const updateGroupSetting = async (userId, field, value) => {
+  try {
+    const config = await getOrCreateConfig(userId);
+    config[field] = value;
+    await config.save();
+  } catch (error) {
+    logger.error(`Error updating config for user ${userId}: ${error.message}`);
+  }
+};
+
+/**
+ * Get user's config
+ * @param {number} userId - Telegram user ID
+ * @returns {object} - Config instance
+ */
+const getGroupConfig = async (userId) => {
+  try {
+    const config = await Config.findOne({ where: { userId } });
+    return config;
+  } catch (error) {
+    logger.error(`Error fetching config for user ${userId}: ${error.message}`);
+    return null;
+  }
 };
 
 module.exports = {
-  loadGroupConfigs,
-  saveGroupConfigs,
   updateGroupSetting,
   getGroupConfig
 };
