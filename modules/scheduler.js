@@ -33,7 +33,6 @@ function formatPrice(value) {
 }
 
 function toJalali(dateStr) {
-  // dateStr format: YYYY-MM-DD
   const parts = dateStr.split('-').map(Number);
   const gy = parts[0], gm = parts[1], gd = parts[2];
   try {
@@ -46,10 +45,14 @@ function toJalali(dateStr) {
 
 function formatTime(timeStr) {
   if (!timeStr) return null;
-  // Try to extract HH:MM from various formats
-  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
-  if (match) return match[1].padStart(2, '0') + ':' + match[2];
-  return timeStr;
+  // If it looks like a date only (YYYY-MM-DD), don't show it as time
+  if (/^\d{4}-\d{2}-\d{2}$/.test(timeStr)) return null;
+  // If it looks like a datetime (YYYY-MM-DDTHH:MM or YYYY-MM-DD HH:MM), extract time only
+  const dateTimeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (dateTimeMatch) return dateTimeMatch[1].padStart(2, '0') + ':' + dateTimeMatch[2];
+  // If it's just a time string like "14:30", return it
+  if (/^\d{1,2}:\d{2}$/.test(timeStr)) return timeStr;
+  return null;
 }
 
 function routeLabel(alert) {
@@ -144,39 +147,6 @@ function shouldNotify(alert, lowestPrice, historyRows, weeklyTrend) {
   };
 }
 
-function buildTicketPage(ticket, alert, pageNum, totalPages) {
-  const lines = [];
-  const providerFa = ticket.providerFa || PROVIDER_NAMES_FA[ticket.provider] || ticket.provider;
-  const jalaliDate = toJalali(alert.date);
-  const timeStr = formatTime(ticket.departureTime);
-
-  lines.push(`✈️ ${providerFa}`);
-  lines.push(`💰 ${formatPrice(ticket.price)}`);
-
-  if (ticket.airlineName) lines.push(`🛫 ${ticket.airlineName}`);
-  if (ticket.flightNumber) lines.push(`🔢 پرواز: ${ticket.flightNumber}`);
-
-  if (timeStr) {
-    lines.push(`🕐 تاریخ و ساعت حرکت: ${jalaliDate} - ${timeStr}`);
-  } else {
-    lines.push(`📅 تاریخ سفر: ${jalaliDate}`);
-  }
-
-  if (ticket.seats !== null && ticket.seats !== undefined) lines.push(`💺 صندلی باقی‌مانده: ${ticket.seats}`);
-
-  // Direct purchase link for this specific provider
-  const purchaseLink = buildPurchaseLink(ticket, alert);
-  if (purchaseLink) {
-    lines.push(`🔗 خرید: ${purchaseLink}`);
-  }
-
-  if (totalPages > 1) {
-    lines.push('', `📄 ${pageNum}/${totalPages}`);
-  }
-
-  return lines.join('\n');
-}
-
 function buildPurchaseLink(ticket, alert) {
   const date = alert.date;
   const passengers = alert.passengers || 1;
@@ -187,7 +157,7 @@ function buildPurchaseLink(ticket, alert) {
     case 'mrbilit-flight':
       return 'https://www.mrbilit.com/flight/search?origin=' + origin + '&destination=' + dest + '&date=' + date + '&adult=' + passengers;
     case 'flytoday-flight':
-      return 'https://www.flytoday.ir/flight/search?departure=' + origin.toLowerCase() + ',1&arrival=' + dest.toLowerCase() + ',1&departureDate=' + date + '&adt=' + passengers + '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false';
+      return 'https://www.flytoday.ir/flight/search?departure=' + origin.toLowerCase() + '%2C1&arrival=' + dest.toLowerCase() + '%2C1&departureDate=' + date + '&adt=' + passengers + '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false&lang=fa&route=search#drawer';
     case 'safarmarket-flight-calendar':
       return 'https://safarmarket.com/flights/c' + origin + '-c' + dest + '/' + date + '/0/economy/' + passengers + 'adults/0children/0infants';
     case 'alibaba-flight':
@@ -203,15 +173,46 @@ function buildPurchaseLink(ticket, alert) {
   }
 }
 
+function buildTicketPage(ticket, alert, pageNum, totalPages) {
+  const lines = [];
+  const providerFa = ticket.providerFa || PROVIDER_NAMES_FA[ticket.provider] || ticket.provider;
+  const jalaliDate = toJalali(alert.date);
+  const timeStr = formatTime(ticket.departureTime);
+
+  lines.push(`✈️ ${providerFa}`);
+  lines.push(`💰 ${formatPrice(ticket.price)}`);
+
+  if (ticket.airlineName) lines.push(`🛫 ${ticket.airlineName}`);
+  if (ticket.flightNumber) lines.push(`🔢 پرواز: ${ticket.flightNumber}`);
+
+  // Date and time on one line, Jalali only
+  if (timeStr) {
+    lines.push(`📅 ${jalaliDate} | 🕐 ${timeStr}`);
+  } else {
+    lines.push(`📅 ${jalaliDate}`);
+  }
+
+  if (ticket.seats !== null && ticket.seats !== undefined) lines.push(`💺 صندلی باقی‌مانده: ${ticket.seats}`);
+
+  // Direct purchase link for this specific provider only
+  const purchaseLink = buildPurchaseLink(ticket, alert);
+  if (purchaseLink) {
+    lines.push(`🔗 خرید: ${purchaseLink}`);
+  }
+
+  if (totalPages > 1) {
+    lines.push('', `📄 ${pageNum}/${totalPages}`);
+  }
+
+  return lines.join('\n');
+}
+
 function buildAlertMessage(alert, tickets, decision, errors) {
-  // For threshold mode with multiple tickets under threshold, show all
-  // Otherwise show the lowest one
   const isThreshold = alert.mode === 'threshold';
   const thresholdPrice = Number(alert.thresholdPrice || 0);
 
-  let ticketsToShow = [tickets[0]]; // default: lowest only
+  let ticketsToShow = [tickets[0]];
   if (isThreshold && thresholdPrice > 0) {
-    // Show all tickets under threshold
     ticketsToShow = tickets.filter(t => t.price <= thresholdPrice);
   }
 
@@ -219,7 +220,6 @@ function buildAlertMessage(alert, tickets, decision, errors) {
   const jalaliDate = toJalali(alert.date);
   const route = routeLabel(alert);
 
-  // Build header
   const header = [
     '🎫 پیشنهاد بلیط',
     '',
@@ -235,12 +235,10 @@ function buildAlertMessage(alert, tickets, decision, errors) {
   if (decision.avg) header.push(`📊 میانگین تاریخی: ${formatPrice(decision.avg)}`);
   if (decision.dropPercent) header.push(`📉 افت نسبت به میانگین: ${decision.dropPercent.toFixed(1)}٪`);
 
-  // Build ticket pages
   const pages = ticketsToShow.map((ticket, i) => {
     return buildTicketPage(ticket, alert, i + 1, totalPages);
   });
 
-  // Build footer with failed providers
   const footer = [];
   if (errors.length) {
     const failedNames = errors.map(e => PROVIDER_NAMES_FA[e.provider] || e.provider).join('، ');
@@ -283,6 +281,7 @@ function buildNoTicketMessage(alert, errors) {
 function buildCurrentPriceMessage(alert, ticket, historyRows, weeklyTrend) {
   const providerFa = ticket.providerFa || PROVIDER_NAMES_FA[ticket.provider] || ticket.provider;
   const jalaliDate = toJalali(alert.date);
+  const timeStr = formatTime(ticket.departureTime);
   const weeklyLines = [];
   if (weeklyTrend?.avgDailyMin) {
     weeklyLines.push('میانگین کف قیمت ۷ روز آینده: ' + formatPrice(weeklyTrend.avgDailyMin));
@@ -300,7 +299,7 @@ function buildCurrentPriceMessage(alert, ticket, historyRows, weeklyTrend) {
     'منبع: ' + providerFa,
     ticket.airlineName ? 'شرکت هواپیمایی: ' + ticket.airlineName : null,
     ticket.flightNumber ? 'شماره پرواز: ' + ticket.flightNumber : null,
-    ticket.departureTime ? 'تاریخ و ساعت حرکت: ' + jalaliDate + ' - ' + formatTime(ticket.departureTime) : 'تاریخ سفر: ' + jalaliDate,
+    timeStr ? 'تاریخ و ساعت حرکت: ' + jalaliDate + ' - ' + timeStr : 'تاریخ سفر: ' + jalaliDate,
     ticket.seats !== null && ticket.seats !== undefined ? 'ظرفیت/صندلی: ' + ticket.seats : null,
     ...weeklyLines,
     '',
@@ -317,17 +316,13 @@ async function sendAlertMessages(bot, alert, tickets, decision, errors) {
   const msg = buildAlertMessage(alert, tickets, decision, errors);
 
   if (msg.totalPages === 1) {
-    // Single ticket - send one message
     const fullMsg = msg.header + '\n\n' + msg.pages[0] + msg.footer;
     await bot.telegram.sendMessage(alert.chatId, fullMsg, { disable_web_page_preview: true });
   } else {
-    // Multiple tickets - send header first, then each ticket as separate message
     await bot.telegram.sendMessage(alert.chatId, msg.header, { disable_web_page_preview: true });
-
     for (const page of msg.pages) {
       await bot.telegram.sendMessage(alert.chatId, page, { disable_web_page_preview: true });
     }
-
     if (msg.footer) {
       await bot.telegram.sendMessage(alert.chatId, msg.footer, { disable_web_page_preview: true });
     }
