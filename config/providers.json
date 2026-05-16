@@ -1,0 +1,101 @@
+[
+  {
+    "name": "mrbilit-flight",
+    "enabled": true,
+    "transports": ["flight"],
+    "responsePath": "Flights",
+    "request": {
+      "method": "POST",
+      "url": "https://flight.atighgasht.com/api/Flights",
+      "headers": {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json-patch+json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJidXMiOiI0ZiIsInRybiI6IjE3Iiwic3JjIjoiMiJ9.vvpr9fgASvk7B7I4KQKCz-SaCmoErab_p3csIvULG1w",
+        "Origin": "https://mrbilit.com",
+        "Referer": "https://mrbilit.com/"
+      },
+      "body": {
+        "AdultCount": "{passengers}",
+        "ChildCount": 0,
+        "InfantCount": 0,
+        "CabinClass": "All",
+        "Routes": [
+          {
+            "OriginCode": "{origin}",
+            "DestinationCode": "{destinationAll}",
+            "DepartureDate": "{date}"
+          }
+        ],
+        "Baggage": true,
+        "IncludeFlightsWithHigherCapacity": false
+      }
+    }
+  },
+  {
+    "name": "flytoday-flight",
+    "enabled": true,
+    "transports": ["flight"],
+    "responsePath": "result",
+    "request": {
+      "method": "POST",
+      "url": "https://www.flytoday.ir/api/gateway/V1/Flight/FareLookUp",
+      "headers": {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Proxy-Content-Type": "application/json",
+        "X-Proxy-Origin": "https://api.flytoday.ir/api",
+        "x-origin": "https://www.flytoday.ir",
+        "x-currency": "IRR",
+        "Origin": "https://www.flytoday.ir",
+        "Referer": "https://www.flytoday.ir/flight/search?departure={originLower},1&arrival={destinationLower},1&departureDate={date}&adt={passengers}&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false"
+      },
+      "body": {
+        "originLocationCode": "{origin}",
+        "destinationLocationCode": "{destination}",
+        "departureDate": "{date}",
+        "adult": "{passengers}",
+        "child": 0,
+        "infant": 0,
+        "lookUpType": 3
+      }
+    }
+  },
+  {
+    "name": "safarmarket-flight-calendar",
+    "enabled": true,
+    "transports": ["flight"],
+    "request": {
+      "method": "GET",
+      "url": "https://safarmarket.com/api/flight/v3/calendar",
+      "headers": {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Referer": "https://safarmarket.com/"
+      },
+      "query": {
+        "org": "{origin}",
+        "orgCity": true,
+        "dst": "{destination}",
+        "dstCity": true,
+        "dom": true
+      }
+    }
+  },
+  {
+    "name": "trip",
+    "enabled": false,
+    "transports": ["flight"],
+    "responsePath": "items",
+    "request": {
+      "method": "GET",
+      "url": "{TRIP_API_URL}?origin={origin}&destination={destination}&date={date}&passengers={passengers}",
+      "headers": {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Referer": "https://www.trip.ir/"
+      }
+    }
+  }
+]

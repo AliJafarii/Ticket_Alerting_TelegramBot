@@ -13,8 +13,10 @@
     "axios": "^1.4.0",
     "dayjs": "^1.11.8",
     "dotenv": "^16.3.1",
+    "jalaali-js": "^1.2.8",
     "moment-timezone": "^0.5.46",
     "node-cron": "^3.0.2",
+    "playwright": "^1.60.0",
     "telegraf": "^4.12.2",
     "winston": "^3.9.0"
   },

@@ -1,357 +1,421 @@
-// modules/bot.js
-
 const { Telegraf, Markup } = require('telegraf');
+const jalaali = require('jalaali-js');
 const logger = require('./logger');
-const {
-  updateGroupSetting,
-  getGroupConfig
-} = require('./configManager');
-const fs = require('fs');
-const path = require('path');
-const dayjs = require('dayjs');
-const utc = require('dayjs/plugin/utc');
-const timezone = require('dayjs/plugin/timezone');
-
-// Initialize dayjs with plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
-// Set timezone to Tehran
-const TIMEZONE = 'Asia/Tehran';
-
-// Set locale to Persian (optional)
-dayjs.locale('fa');
+const { createAlert, deleteAlert, loadAlerts, updateAlert } = require('./configManager');
+const { checkAlert } = require('./scheduler');
+const origins = require('../config/origins.json');
+const destinations = require('../config/destinations.json');
+const providers = require('../config/providers.json');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const states = new Map();
 
-if (!BOT_TOKEN) {
-  logger.error('BOT_TOKEN is not defined in the .env file.');
-  process.exit(1);
+const transports = {
+  flight: 'هواپیما',
+  train: 'قطار',
+  bus: 'اتوبوس'
+};
+
+const mainMenu = Markup.keyboard([
+  ['هشدار جدید'],
+  ['هشدارهای من']
+]).resize();
+
+const monthNames = [
+  'فروردین',
+  'اردیبهشت',
+  'خرداد',
+  'تیر',
+  'مرداد',
+  'شهریور',
+  'مهر',
+  'آبان',
+  'آذر',
+  'دی',
+  'بهمن',
+  'اسفند'
+];
+
+function formatPrice(value) {
+  return Math.round(value).toLocaleString('fa-IR') + ' تومان';
 }
 
-const bot = new Telegraf(BOT_TOKEN);
+function rows(buttons, size = 2) {
+  const out = [];
+  for (let i = 0; i < buttons.length; i += size) out.push(buttons.slice(i, i + size));
+  return out;
+}
 
-// Load origins and destinations
-const originsPath = path.join(__dirname, '..', 'config', 'origins.json');
-const destinationsPath = path.join(__dirname, '..', 'config', 'destinations.json');
-
-const originsData = JSON.parse(fs.readFileSync(originsPath, 'utf-8'));
-const destinationsData = JSON.parse(fs.readFileSync(destinationsPath, 'utf-8'));
-
-// Map to track group states
-const groupStates = new Map();
-
-// Helper to create inline keyboards for origins and destinations
-const createSelectionKeyboard = (items, callbackPrefix) => {
-  const buttons = Object.keys(items).map(name =>
-    Markup.button.callback(name, `${callbackPrefix}_${items[name]}`)
+function keyboardFromMap(items, prefix) {
+  const buttons = Object.entries(items).map(([label, code]) =>
+    Markup.button.callback(label, prefix + ':' + code)
   );
+  return Markup.inlineKeyboard(rows(buttons, 2));
+}
 
-  // Arrange buttons in rows of 2
-  const keyboard = [];
-  for (let i = 0; i < buttons.length; i += 2) {
-    keyboard.push(buttons.slice(i, i + 2));
-  }
+function transportKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('هواپیما', 'transport:flight'),
+      Markup.button.callback('قطار', 'transport:train')
+    ],
+    [Markup.button.callback('اتوبوس', 'transport:bus')]
+  ]);
+}
 
-  return Markup.inlineKeyboard(keyboard);
-};
-
-// Helper to create inline keyboards for selecting year, month, day
-const createYearKeyboard = (years) => {
-  const buttons = years.map(year =>
-    Markup.button.callback(year, `select_year_${year}`)
+function hasActiveProvider(transport) {
+  return providers.some((provider) =>
+    provider.enabled !== false && (!provider.transports || provider.transports.includes(transport))
   );
-  const keyboard = [];
-  for (let i = 0; i < buttons.length; i += 3) { // 3 per row
-    keyboard.push(buttons.slice(i, i + 3));
-  }
-  return Markup.inlineKeyboard(keyboard);
-};
+}
 
-const createMonthKeyboard = () => {
-  const months = [
-    'January', 'February', 'March',
-    'April', 'May', 'June',
-    'July', 'August', 'September',
-    'October', 'November', 'December'
-  ];
+function passengerKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('۱ نفر', 'passengers:1'),
+      Markup.button.callback('۲ نفر', 'passengers:2'),
+      Markup.button.callback('۳ نفر', 'passengers:3')
+    ],
+    [
+      Markup.button.callback('۴ نفر', 'passengers:4'),
+      Markup.button.callback('۵ نفر', 'passengers:5'),
+      Markup.button.callback('۶ نفر', 'passengers:6')
+    ]
+  ]);
+}
 
-  const buttons = months.map((month, index) =>
-    Markup.button.callback(month, `select_month_${index + 1}`) // 1-based
+function modeKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('هوشمند با تاریخچه قیمت', 'mode:smart')],
+    [Markup.button.callback('زیر مبلغ مشخص', 'mode:threshold')]
+  ]);
+}
+
+function thresholdKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('۲ میلیون', 'threshold:2000000'),
+      Markup.button.callback('۳ میلیون', 'threshold:3000000')
+    ],
+    [
+      Markup.button.callback('۵ میلیون', 'threshold:5000000'),
+      Markup.button.callback('۱۰ میلیون', 'threshold:10000000')
+    ],
+    [Markup.button.callback('مبلغ دلخواه', 'threshold:custom')]
+  ]);
+}
+
+function currentJalaliYear() {
+  const now = new Date();
+  return jalaali.toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate()).jy;
+}
+
+function yearKeyboard() {
+  const jy = currentJalaliYear();
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(String(jy), 'date-year:' + jy),
+      Markup.button.callback(String(jy + 1), 'date-year:' + (jy + 1)),
+      Markup.button.callback(String(jy + 2), 'date-year:' + (jy + 2))
+    ]
+  ]);
+}
+
+function monthKeyboard() {
+  const buttons = monthNames.map((name, index) =>
+    Markup.button.callback(name, 'date-month:' + (index + 1))
   );
+  return Markup.inlineKeyboard(rows(buttons, 3));
+}
 
-  const keyboard = [];
-  for (let i = 0; i < buttons.length; i += 4) { // 4 per row
-    keyboard.push(buttons.slice(i, i + 4));
-  }
-
-  return Markup.inlineKeyboard(keyboard);
-};
-
-const createDayKeyboard = (month, year) => {
-  // Ensure month is two digits
-  const formattedMonth = month.toString().padStart(2, '0');
-  const daysInMonth = dayjs(`${year}-${formattedMonth}-01`).daysInMonth();
-
+function dayKeyboard(year, month) {
+  const count = jalaali.jalaaliMonthLength(Number(year), Number(month));
   const buttons = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    buttons.push(Markup.button.callback(day.toString(), `select_day_${day}`));
+  for (let day = 1; day <= count; day += 1) {
+    buttons.push(Markup.button.callback(String(day), 'date-day:' + day));
+  }
+  return Markup.inlineKeyboard(rows(buttons, 7));
+}
+
+function cityNameByCode(map, code) {
+  return Object.entries(map).find(([, value]) => value === code)?.[0] || code;
+}
+
+function setStep(chatId, patch) {
+  const current = states.get(String(chatId)) || {};
+  states.set(String(chatId), { ...current, ...patch });
+}
+
+function getStep(chatId) {
+  return states.get(String(chatId));
+}
+
+function clearStep(chatId) {
+  states.delete(String(chatId));
+}
+
+function toGregorianDateString(jy, jm, jd) {
+  const g = jalaali.toGregorian(Number(jy), Number(jm), Number(jd));
+  const mm = String(g.gm).padStart(2, '0');
+  const dd = String(g.gd).padStart(2, '0');
+  return g.gy + '-' + mm + '-' + dd;
+}
+
+function buildSummary(alert) {
+  const originName = alert.originName || cityNameByCode(origins, alert.origin);
+  const destinationName = alert.destinationName || cityNameByCode(destinations, alert.destination);
+  const lines = [
+    'هشدار ذخیره شد.',
+    '',
+    'شناسه: ' + alert.id,
+    'نوع سفر: ' + transports[alert.transport],
+    'مسیر: ' + originName + ' به ' + destinationName,
+    'تاریخ: ' + (alert.jalaliDate || alert.date),
+    'تعداد مسافر: ' + alert.passengers,
+    'حالت: ' + (alert.mode === 'threshold' ? 'زیر مبلغ مشخص' : 'هوشمند بر اساس تاریخچه قیمت')
+  ];
+  if (alert.mode === 'threshold') lines.push('مبلغ هدف: ' + formatPrice(alert.thresholdPrice));
+  return lines.join('\n');
+}
+
+function persistAlert(chatId, state, patch = {}) {
+  const input = { ...state, ...patch };
+  delete input.step;
+  if (input.editingId) {
+    const id = input.editingId;
+    delete input.editingId;
+    return updateAlert(id, {
+      ...input,
+      enabled: true,
+      updatedAt: new Date().toISOString(),
+      lastProviderWarningAt: null,
+      lastNoTicketWarningAt: null,
+      lastBaselineMessageAt: null
+    });
+  }
+  delete input.editingId;
+  return createAlert(chatId, input);
+}
+
+async function saveAndCheck(ctx, alert) {
+  if (!alert) return ctx.reply('درخواست پیدا نشد.', mainMenu);
+  await ctx.reply(buildSummary(alert), mainMenu);
+  await checkAlert({ telegram: ctx.telegram }, alert, providers);
+}
+
+function listAlertsText(chatId) {
+  const alerts = Object.values(loadAlerts()).filter((alert) => String(alert.chatId) === String(chatId));
+  if (!alerts.length) return 'هنوز هشداری ثبت نشده است.';
+  return alerts.map((alert) => {
+    const originName = alert.originName || cityNameByCode(origins, alert.origin);
+    const destinationName = alert.destinationName || cityNameByCode(destinations, alert.destination);
+    return [
+      (alert.enabled ? 'فعال' : 'غیرفعال') + ' | ' + alert.id,
+      transports[alert.transport] + ' | ' + originName + ' به ' + destinationName,
+      'تاریخ: ' + (alert.jalaliDate || alert.date),
+      'حالت: ' + (alert.mode === 'threshold' ? 'زیر ' + formatPrice(alert.thresholdPrice) : 'هوشمند')
+    ].join('\n');
+  }).join('\n\n');
+}
+
+async function sendAlertsList(ctx) {
+  const alerts = Object.values(loadAlerts()).filter((alert) => String(alert.chatId) === String(ctx.chat.id));
+  if (!alerts.length) return ctx.reply('هنوز هشداری ثبت نشده است.', mainMenu);
+
+  for (const alert of alerts) {
+    await ctx.reply(buildSummary(alert), Markup.inlineKeyboard([
+      [
+        Markup.button.callback('ویرایش', 'alert-edit:' + alert.id),
+        Markup.button.callback('حذف', 'alert-delete:' + alert.id)
+      ],
+      [
+        Markup.button.callback(alert.enabled ? 'غیرفعال کردن' : 'فعال کردن', 'alert-toggle:' + alert.id)
+      ]
+    ]));
+  }
+}
+
+async function startNewAlert(ctx) {
+  setStep(ctx.chat.id, { step: 'transport' });
+  await ctx.reply('نوع سفر را انتخاب کن:', transportKeyboard());
+}
+
+async function startEditAlert(ctx, alert) {
+  setStep(ctx.chat.id, { step: 'transport', editingId: alert.id });
+  await ctx.reply('برای ویرایش، اطلاعات درخواست را دوباره انتخاب کن. نوع سفر را انتخاب کن:', transportKeyboard());
+}
+
+function createBot() {
+  if (!BOT_TOKEN) {
+    logger.warn('BOT_TOKEN is missing; Telegram bot will not launch.');
+    return null;
   }
 
-  const keyboard = [];
-  for (let i = 0; i < buttons.length; i += 7) { // 7 per row
-    keyboard.push(buttons.slice(i, i + 7));
-  }
+  const bot = new Telegraf(BOT_TOKEN);
 
-  return Markup.inlineKeyboard(keyboard);
-};
+  bot.start((ctx) => ctx.reply([
+    'بات هشدار قیمت بلیط آماده است.',
+    '',
+    'از دکمه‌های پایین استفاده کن.'
+  ].join('\n'), mainMenu));
 
-// Start command
-bot.start((ctx) => {
-  ctx.reply('Hello! Use /setup to configure flight price alerts.');
-});
+  bot.hears('هشدار جدید', startNewAlert);
+  bot.command('newalert', startNewAlert);
 
-// Setup command to initiate configuration
-bot.command('setup', async (ctx) => {
-  const groupId = ctx.chat.id;
-  // Reset existing settings
-  updateGroupSetting(groupId, 'origin', '');
-  updateGroupSetting(groupId, 'destination', '');
-  updateGroupSetting(groupId, 'adultCount', 1);
-  updateGroupSetting(groupId, 'departureDate', '');
-  updateGroupSetting(groupId, 'minAmount', 0);
+  bot.hears('هشدارهای من', sendAlertsList);
+  bot.command('alerts', sendAlertsList);
 
-  // Reset group state
-  groupStates.set(groupId, 'select_origin');
+  bot.command('stopalert', async (ctx) => {
+    const id = ctx.message.text.split(/\s+/)[1];
+    if (!id) return ctx.reply('شناسه هشدار را بعد از دستور بفرست. مثال: /stopalert abc123', mainMenu);
+    const alert = updateAlert(id, { enabled: false });
+    await ctx.reply(alert ? 'هشدار غیرفعال شد.' : 'هشداری با این شناسه پیدا نشد.', mainMenu);
+  });
 
-  await ctx.reply('Please select the origin:', 
-    createSelectionKeyboard(originsData, 'origin')
-  );
-});
+  bot.action(/alert-edit:([a-f0-9]+)/, async (ctx) => {
+    const alert = loadAlerts()[ctx.match[1]];
+    if (!alert || String(alert.chatId) !== String(ctx.chat.id)) {
+      await ctx.answerCbQuery();
+      return ctx.reply('این درخواست پیدا نشد.', mainMenu);
+    }
+    await startEditAlert(ctx, alert);
+    await ctx.answerCbQuery();
+  });
 
-// Handler for origin selection
-bot.action(/origin_(\w{3})/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  const originCode = ctx.match[1];
-  const originName = Object.keys(originsData).find(key => originsData[key] === originCode);
+  bot.action(/alert-delete:([a-f0-9]+)/, async (ctx) => {
+    const alert = loadAlerts()[ctx.match[1]];
+    if (!alert || String(alert.chatId) !== String(ctx.chat.id)) {
+      await ctx.answerCbQuery();
+      return ctx.reply('این درخواست پیدا نشد.', mainMenu);
+    }
+    deleteAlert(alert.id);
+    await ctx.reply('درخواست حذف شد.', mainMenu);
+    await ctx.answerCbQuery();
+  });
 
-  updateGroupSetting(groupId, 'origin', originCode);
-  await ctx.reply(`Origin set to: ${originName}`);
+  bot.action(/alert-toggle:([a-f0-9]+)/, async (ctx) => {
+    const alert = loadAlerts()[ctx.match[1]];
+    if (!alert || String(alert.chatId) !== String(ctx.chat.id)) {
+      await ctx.answerCbQuery();
+      return ctx.reply('این درخواست پیدا نشد.', mainMenu);
+    }
+    const updated = updateAlert(alert.id, { enabled: !alert.enabled, updatedAt: new Date().toISOString() });
+    await ctx.reply(updated.enabled ? 'درخواست فعال شد.' : 'درخواست غیرفعال شد.', mainMenu);
+    await ctx.answerCbQuery();
+  });
 
-  // Proceed to select destination
-  groupStates.set(groupId, 'select_destination');
-  await ctx.reply('Please select the destination:', 
-    createSelectionKeyboard(destinationsData, 'destination')
-  );
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for destination selection
-bot.action(/destination_(\w{3})/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  const destinationCode = ctx.match[1];
-  const destinationName = Object.keys(destinationsData).find(key => destinationsData[key] === destinationCode);
-
-  updateGroupSetting(groupId, 'destination', destinationCode);
-  await ctx.reply(`Destination set to: ${destinationName}`);
-
-  // Proceed to select adult count
-  groupStates.set(groupId, 'select_adultCount');
-
-  const adultCounts = {};
-  for (let i = 1; i <= 5; i++) { // Allowing up to 5 adults
-    adultCounts[i] = i;
-  }
-
-  await ctx.reply('Please select the number of adults:', 
-    createSelectionKeyboard(adultCounts, 'adultCount')
-  );
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for adult count selection
-bot.action(/adultCount_(\d+)/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  const adultCount = parseInt(ctx.match[1], 10);
-
-  updateGroupSetting(groupId, 'adultCount', adultCount);
-  await ctx.reply(`Number of adults set to: ${adultCount}`);
-
-  // Proceed to select departure date
-  groupStates.set(groupId, 'select_departure_year');
-
-  // Define a range of years (current and next year)
-  const currentYear = dayjs().year();
-  const years = [currentYear, currentYear + 1];
-
-  await ctx.reply('Please select the departure year:', 
-    createYearKeyboard(years)
-  );
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for selecting year
-bot.action(/select_year_(\d+)/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  const selectedYear = ctx.match[1];
-
-  const config = getGroupConfig(groupId);
-  if (config) {
-    // Temporarily store selected year in config
-    updateGroupSetting(groupId, 'selectedYear', selectedYear);
-  }
-
-  await ctx.reply(`Departure year set to: ${selectedYear}`);
-
-  // Proceed to select month
-  groupStates.set(groupId, 'select_departure_month');
-  await ctx.reply('Please select the departure month:', 
-    createMonthKeyboard()
-  );
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for selecting month
-bot.action(/select_month_(\d+)/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  const selectedMonth = ctx.match[1];
-
-  const config = getGroupConfig(groupId);
-  if (config && config.selectedYear) {
-    // Ensure month is two digits
-    const formattedMonth = selectedMonth.toString().padStart(2, '0');
-    updateGroupSetting(groupId, 'selectedMonth', formattedMonth);
-  }
-
-  const monthName = dayjs().month(selectedMonth -1).format('MMMM'); // 0-based
-
-  await ctx.reply(`Departure month set to: ${monthName}`);
-
-  // Proceed to select day
-  groupStates.set(groupId, 'select_departure_day');
-
-  const selectedYear = config.selectedYear;
-  const selectedGregorianMonth = dayjs(`${selectedYear}-${selectedMonth}-01`).format('MM'); // ensure two digits
-  await ctx.reply('Please select the departure day:', 
-    createDayKeyboard(selectedGregorianMonth, selectedYear)
-  );
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for selecting day
-bot.action(/select_day_(\d+)/, async (ctx) => {
-  const groupId = ctx.chat.id;
-  let selectedDay = ctx.match[1];
-
-  // Pad day with leading zero if necessary
-  selectedDay = selectedDay.toString().padStart(2, '0');
-
-  const config = getGroupConfig(groupId);
-  if (config && config.selectedYear && config.selectedMonth) {
-    updateGroupSetting(groupId, 'selectedDay', selectedDay);
-  }
-
-  await ctx.reply(`Departure day set to: ${selectedDay}`);
-
-  // Now, compile the selected date
-  const selectedYear = config.selectedYear;
-  const selectedMonth = config.selectedMonth;
-  const selectedDayFinal = config.selectedDay;
-
-  const gregorianDate = dayjs(`${selectedYear}-${selectedMonth}-${selectedDayFinal}`).format('YYYY-MM-DD');
-
-  updateGroupSetting(groupId, 'departureDate', gregorianDate);
-  await ctx.reply(`Departure date set to: ${gregorianDate}`);
-
-  // Proceed to input minAmount
-  groupStates.set(groupId, 'input_minAmount');
-  await ctx.reply('Please enter the minimum amount in IRR (e.g., 30000000):');
-
-  await ctx.answerCbQuery();
-});
-
-// Handler for minAmount input
-bot.on('text', async (ctx) => {
-  const groupId = ctx.chat.id;
-  const message = ctx.message.text.trim();
-
-  const config = getGroupConfig(groupId);
-
-  if (config && config.departureDate && config.selectedYear && config.selectedMonth && config.selectedDay && !config.minAmount) {
-    const minAmount = parseInt(message, 10);
-    if (isNaN(minAmount) || minAmount <= 0) {
-      await ctx.reply('Invalid amount. Please enter a positive number.');
+  bot.action(/transport:(\w+)/, async (ctx) => {
+    const transport = ctx.match[1];
+    if (!hasActiveProvider(transport)) {
+      await ctx.reply('فعلاً برای ' + (transports[transport] || transport) + ' منبع قیمت فعال نداریم. الان فقط هواپیما فعال است.', mainMenu);
+      await ctx.answerCbQuery();
       return;
     }
+    setStep(ctx.chat.id, { step: 'origin', transport });
+    await ctx.reply('مبدا را انتخاب کن:', keyboardFromMap(origins, 'origin'));
+    await ctx.answerCbQuery();
+  });
 
-    updateGroupSetting(groupId, 'minAmount', minAmount);
-    await ctx.reply(`Minimum amount set to: ${minAmount.toLocaleString()} IRR`);
+  bot.action(/origin:(\w+)/, async (ctx) => {
+    const code = ctx.match[1];
+    setStep(ctx.chat.id, { step: 'destination', origin: code, originName: cityNameByCode(origins, code) });
+    await ctx.reply('مقصد را انتخاب کن:', keyboardFromMap(destinations, 'destination'));
+    await ctx.answerCbQuery();
+  });
 
-    // Confirmation
-    const originName = Object.keys(originsData).find(key => originsData[key] === config.origin);
-    const destinationName = Object.keys(destinationsData).find(key => destinationsData[key] === config.destination);
-    const departureDateFormatted = dayjs(config.departureDate, 'YYYY-MM-DD').format('YYYY-MM-DD');
+  bot.action(/destination:(\w+)/, async (ctx) => {
+    const code = ctx.match[1];
+    setStep(ctx.chat.id, { step: 'date-year', destination: code, destinationName: cityNameByCode(destinations, code) });
+    await ctx.reply('سال سفر را انتخاب کن:', yearKeyboard());
+    await ctx.answerCbQuery();
+  });
 
-    await ctx.reply(`⚙️ **Your settings have been saved as follows:**\n` +
-                  `1. Origin: ${originName}\n` +
-                  `2. Destination: ${destinationName}\n` +
-                  `3. Number of Adults: ${config.adultCount}\n` +
-                  `4. Departure Date: ${departureDateFormatted}\n` +
-                  `5. Minimum Amount: ${config.minAmount.toLocaleString()} IRR`);
+  bot.action(/date-year:(\d+)/, async (ctx) => {
+    setStep(ctx.chat.id, { step: 'date-month', jy: Number(ctx.match[1]) });
+    await ctx.reply('ماه سفر را انتخاب کن:', monthKeyboard());
+    await ctx.answerCbQuery();
+  });
 
-    // Reset group state
-    groupStates.delete(groupId);
-  }
-});
+  bot.action(/date-month:(\d+)/, async (ctx) => {
+    const state = getStep(ctx.chat.id);
+    if (!state?.jy) return ctx.answerCbQuery();
+    const jm = Number(ctx.match[1]);
+    setStep(ctx.chat.id, { step: 'date-day', jm });
+    await ctx.reply('روز سفر را انتخاب کن:', dayKeyboard(state.jy, jm));
+    await ctx.answerCbQuery();
+  });
 
-// Settings command to view current configurations
-bot.command('settings', (ctx) => {
-  const groupId = ctx.chat.id;
-  const config = getGroupConfig(groupId);
-  if (config) {
-    const originName = Object.keys(originsData).find(key => originsData[key] === config.origin) || 'Unknown';
-    const destinationName = Object.keys(destinationsData).find(key => destinationsData[key] === config.destination) || 'Unknown';
-    const departureDateFormatted = dayjs(config.departureDate, 'YYYY-MM-DD').format('YYYY-MM-DD');
+  bot.action(/date-day:(\d+)/, async (ctx) => {
+    const state = getStep(ctx.chat.id);
+    if (!state?.jy || !state?.jm) return ctx.answerCbQuery();
+    const jd = Number(ctx.match[1]);
+    const date = toGregorianDateString(state.jy, state.jm, jd);
+    const jalaliDate = state.jy + '/' + String(state.jm).padStart(2, '0') + '/' + String(jd).padStart(2, '0');
+    setStep(ctx.chat.id, { step: 'passengers', jd, date, jalaliDate });
+    await ctx.reply('تعداد مسافر را انتخاب کن:', passengerKeyboard());
+    await ctx.answerCbQuery();
+  });
 
-    ctx.reply(`⚙️ **Current Settings:**\n` +
-              `1. Origin: ${originName}\n` +
-              `2. Destination: ${destinationName}\n` +
-              `3. Number of Adults: ${config.adultCount}\n` +
-              `4. Departure Date: ${departureDateFormatted}\n` +
-              `5. Minimum Amount: ${config.minAmount.toLocaleString()} IRR`);
-  } else {
-    ctx.reply('No settings have been configured yet. Use /setup to start.');
-  }
-});
+  bot.action(/passengers:(\d+)/, async (ctx) => {
+    setStep(ctx.chat.id, { step: 'mode', passengers: Number(ctx.match[1]) });
+    await ctx.reply('حالت هشدار را انتخاب کن:', modeKeyboard());
+    await ctx.answerCbQuery();
+  });
 
-// Help command
-bot.help((ctx) => {
-  ctx.reply('Available commands:\n' +
-            '/setup - Configure flight price alerts\n' +
-            '/settings - View current settings');
-});
+  bot.action(/mode:(\w+)/, async (ctx) => {
+    const mode = ctx.match[1];
+    const state = getStep(ctx.chat.id);
+    if (!state) return ctx.answerCbQuery();
+    if (mode === 'threshold') {
+      setStep(ctx.chat.id, { step: 'thresholdPrice', mode });
+      await ctx.reply('مبلغ هدف را انتخاب کن:', thresholdKeyboard());
+    } else {
+      const alert = persistAlert(ctx.chat.id, state, { mode: 'smart' });
+      clearStep(ctx.chat.id);
+      await saveAndCheck(ctx, alert);
+    }
+    await ctx.answerCbQuery();
+  });
 
-// Launch the bot
-const startBot = () => {
-  bot.launch()
-    .then(() => logger.info('Telegram bot started successfully.'))
-    .catch((error) => logger.error(`Failed to launch bot: ${error.message}`));
-};
+  bot.action(/threshold:(\w+)/, async (ctx) => {
+    const value = ctx.match[1];
+    const state = getStep(ctx.chat.id);
+    if (!state) return ctx.answerCbQuery();
+    if (value === 'custom') {
+      setStep(ctx.chat.id, { step: 'thresholdPriceText', mode: 'threshold' });
+      await ctx.reply('مبلغ دلخواه را به تومان بفرست. مثال: 2500000');
+    } else {
+      const alert = persistAlert(ctx.chat.id, state, { mode: 'threshold', thresholdPrice: Number(value) });
+      clearStep(ctx.chat.id);
+      await saveAndCheck(ctx, alert);
+    }
+    await ctx.answerCbQuery();
+  });
 
-// Enable graceful stop
-const gracefulStop = () => {
-  bot.stop('SIGINT');
-  logger.info('Bot stopped gracefully.');
-};
+  bot.on('text', async (ctx) => {
+    const state = getStep(ctx.chat.id);
+    if (!state) return ctx.reply('از دکمه‌های پایین استفاده کن.', mainMenu);
+    const text = ctx.message.text.trim();
 
-process.once('SIGINT', gracefulStop);
-process.once('SIGTERM', gracefulStop);
+    if (state.step === 'thresholdPriceText') {
+      const thresholdPrice = Number(text.replace(/[,٬\s]/g, ''));
+      if (!Number.isFinite(thresholdPrice) || thresholdPrice <= 0) return ctx.reply('مبلغ معتبر نیست.');
+      const alert = persistAlert(ctx.chat.id, state, { thresholdPrice });
+      clearStep(ctx.chat.id);
+      return saveAndCheck(ctx, alert);
+    }
+  });
 
-module.exports = {
-  startBot
-};
+  bot.catch((error) => logger.error('Bot error: ' + error.message));
+  return bot;
+}
+
+function startBot() {
+  const bot = createBot();
+  if (!bot) return null;
+  bot.launch();
+  logger.info('Ticket alert bot started.');
+  return bot;
+}
+
+module.exports = { createBot, startBot };

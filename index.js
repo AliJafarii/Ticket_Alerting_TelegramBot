@@ -5,11 +5,12 @@ const logger = require('./modules/logger');
 const botModule = require('./modules/bot');
 const schedulerModule = require('./modules/scheduler');
 
-// Start the Telegram bot
-botModule.startBot();
-
-// Start the scheduler
-schedulerModule.startScheduler();
+const bot = botModule.startBot();
+if (bot) {
+  schedulerModule.startScheduler(bot);
+} else {
+  logger.warn('Scheduler not started because BOT_TOKEN is missing.');
+}
 
 // Handle uncaught exceptions and rejections
 process.on('uncaughtException', (error) => {

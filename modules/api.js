@@ -1,63 +1,196 @@
-// modules/api.js
-
 const axios = require('axios');
 const logger = require('./logger');
 
-const API_URL = process.env.API_URL;
+const DEFAULT_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 15000);
 
-if (!API_URL) {
-  logger.error('API_URL is not defined in the .env file.');
-  process.exit(1);
+function getPath(obj, path) {
+  if (!path) return undefined;
+  return path.split('.').reduce((acc, part) => {
+    if (acc === undefined || acc === null) return undefined;
+    if (part === '[]') return Array.isArray(acc) ? acc : undefined;
+    return acc[part];
+  }, obj);
 }
 
-const fetchFlightData = async (params) => {
-  const {
-    origin,
-    destination,
-    adultCount,
-    departureDate
-  } = params;
-
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0',
-    'Accept': 'application/json',
-    'Accept-Language': 'fa',
-    'Accept-Encoding': 'gzip, deflate, br, zstd',
-    'Content-Type': 'application/json',
-    'Referer': 'https://www.snapptrip.com/',
-    'channel': 'web',
-    'User-Tracking-Key': 'd5e07644-5329-4270-bdbe-402009b9c88b',
-    'Origin': 'https://www.snapptrip.com',
-    'Sec-Fetch-Dest': 'empty',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'same-site',
-    'Connection': 'keep-alive',
-    'Priority': 'u=4',
-    'Cookie': 'cookiesession1=678B28C6F61C4F2BDFA957BD16A21B86'
-  };
-
-  const data = {
-    dateType: "jalali",
-    origin,
-    destination,
-    destinationIsCity: true,
-    originIsCity: true,
-    adultCount,
-    childCount: 0,
-    infantCount: 0,
-    departureDate,
-    cabinType: "ECONOMY"
-  };
-
-  try {
-    const response = await axios.post(API_URL, data, { headers });
-    return response.data;
-  } catch (error) {
-    logger.error(`Error fetching flight data: ${error.message}`);
-    throw error;
+function flatten(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.flatMap(flatten);
+  if (typeof value === 'object') {
+    if (Array.isArray(value.items)) return flatten(value.items);
+    if (Array.isArray(value.results)) return flatten(value.results);
+    if (Array.isArray(value.data)) return flatten(value.data);
   }
-};
+  return [value];
+}
 
-module.exports = {
-  fetchFlightData
-};
+function asNumber(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).replace(/[,٬\s]/g, '');
+  const n = Number(normalized);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function template(value, params) {
+  if (typeof value === 'string') {
+    return value.replace(/\{(\w+)\}/g, (_, key) => params[key] ?? process.env[key] ?? '');
+  }
+  if (Array.isArray(value)) return value.map((item) => template(item, params));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, val]) => [key, template(val, params)]));
+  }
+  return value;
+}
+
+function normalizeTicket(raw, providerName, transport) {
+  const price = asNumber(
+    raw.price ?? raw.amount ?? raw.payablePrice ?? raw.totalPrice ?? raw.finalPrice ??
+    raw?.pricing?.totalPayablePrice ?? raw?.pricing?.payablePrice ??
+    raw?.pricing?.pricingDetails?.find?.((x) => x.passengerType === 'ADULT')?.payablePrice
+  );
+  if (!price) return null;
+
+  const segment = raw.routes?.[0]?.segments?.[0] || raw.segments?.[0] || raw.segment || raw;
+  return {
+    provider: providerName,
+    transport,
+    price,
+    title: raw.title || raw.name || raw.airlineName || raw.companyName || raw.busCompanyName || raw.trainName || providerName,
+    departureTime: segment.departureDateTime || segment.departureTime || raw.departureDateTime || raw.departureTime || null,
+    arrivalTime: segment.arrivalDateTime || segment.arrivalTime || raw.arrivalDateTime || raw.arrivalTime || null,
+    seats: segment.seatsRemaining ?? raw.seatsRemaining ?? raw.capacity ?? null,
+    deepLink: raw.url || raw.deepLink || raw.link || null,
+    raw
+  };
+}
+
+function normalizeMrbilitFlight(raw, providerName, transport, params) {
+  const segment = raw.Segments?.[0];
+  const leg = segment?.Legs?.[0];
+  if (!leg) return [];
+
+  return (raw.Prices || []).map((priceOption) => {
+    const adultFare = (priceOption.PassengerFares || []).find((fare) => fare.PaxType === 'ADL') ||
+      priceOption.PassengerFares?.[0];
+    const totalFare = asNumber(adultFare?.TotalFare);
+    if (!totalFare) return null;
+    const airline = leg.Airline?.PersianTitle || leg.Airline?.EnglishTitle || leg.AirlineCode || providerName;
+    return {
+      provider: providerName,
+      transport,
+      price: Math.round(totalFare / 10),
+      title: airline + ' ' + (leg.FlightNumber || ''),
+      departureTime: leg.DepartureTime || null,
+      arrivalTime: leg.ArrivalTime || null,
+      seats: priceOption.Capacity ?? null,
+      deepLink: 'https://mrbilit.com/flight/search?origin=' + params.origin + '&destination=' + params.destination + '&date=' + params.date + '&adult=' + (params.passengers || 1),
+      raw: { flightId: raw.Id, priceUniqueId: priceOption.UniqueId }
+    };
+  }).filter(Boolean);
+}
+
+function normalizeFlytodayFlight(raw, providerName, transport, params) {
+  if (raw.departureDate !== params.date) return [];
+
+  const cheapestPrice = asNumber(raw.cheapestPrice);
+  if (!cheapestPrice) return [];
+
+  return [{
+    provider: providerName,
+    transport,
+    price: Math.round(cheapestPrice / 10),
+    title: raw.airline ? 'FlyToday ' + raw.airline : 'FlyToday',
+    departureTime: raw.departureDate || null,
+    arrivalTime: null,
+    seats: null,
+    deepLink: 'https://www.flytoday.ir/flight/search?departure=' +
+      String(params.origin || '').toLowerCase() + ',1&arrival=' +
+      String(params.destination || '').toLowerCase() + ',1&departureDate=' +
+      params.date + '&adt=' + (params.passengers || 1) +
+      '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false',
+    raw
+  }];
+}
+
+function normalizeSafarmarketCalendar(raw, providerName, transport, params) {
+  const item = raw?.cal?.[params.date] || raw?.[params.date] || raw;
+  const minPrice = asNumber(item?.minPrice);
+  if (!minPrice) return [];
+
+  return [{
+    provider: providerName,
+    transport,
+    price: Math.round(minPrice / 10),
+    title: 'Safarmarket calendar',
+    departureTime: item.date || params.date,
+    arrivalTime: null,
+    seats: null,
+    deepLink: 'https://safarmarket.com/flights/c' + params.origin + '-c' + params.destination + '/' +
+      params.date + '/0/economy/' + (params.passengers || 1) + 'adults/0children/0infants',
+    raw: item
+  }];
+}
+
+function normalizeTickets(raw, providerName, transport, params) {
+  if (providerName === 'mrbilit-flight' || raw.Prices || raw.Segments) {
+    return normalizeMrbilitFlight(raw, providerName, transport, params);
+  }
+  if (providerName === 'flytoday-flight' || raw.cheapestPrice) {
+    return normalizeFlytodayFlight(raw, providerName, transport, params);
+  }
+  if (providerName === 'safarmarket-flight-calendar') {
+    return normalizeSafarmarketCalendar(raw, providerName, transport, params);
+  }
+  const ticket = normalizeTicket(raw, providerName, transport);
+  return ticket ? [ticket] : [];
+}
+
+async function fetchProvider(provider, params) {
+  const request = template(provider.request, {
+    ...params,
+    originLower: String(params.origin || '').toLowerCase(),
+    destinationLower: String(params.destination || '').toLowerCase(),
+    destinationAll: params.destination && params.destination.length === 3 ? params.destination + 'ALL' : params.destination
+  });
+  const response = await axios({
+    method: request.method || 'GET',
+    url: request.url,
+    headers: request.headers || {},
+    data: request.body,
+    params: request.query,
+    timeout: request.timeoutMs || DEFAULT_TIMEOUT_MS,
+    validateStatus: (status) => status >= 200 && status < 500
+  });
+
+  if (response.status >= 400) {
+    throw new Error('HTTP ' + response.status);
+  }
+
+  const root = provider.responsePath ? getPath(response.data, provider.responsePath) : response.data;
+  return flatten(root).flatMap((item) => normalizeTickets(item, provider.name, params.transport, params));
+}
+
+async function fetchTickets(params, providers) {
+  const enabled = providers.filter((provider) =>
+    provider.enabled !== false && (!provider.transports || provider.transports.includes(params.transport))
+  );
+  const tickets = [];
+  const errors = [];
+
+  for (const provider of enabled) {
+    try {
+      const items = await fetchProvider(provider, params);
+      tickets.push(...items);
+      if (items.length) {
+        logger.info(`Provider ${provider.name}: ${items.length} ticket(s)`);
+      }
+    } catch (error) {
+      errors.push({ provider: provider.name, error: error.message });
+      logger.warn(`Provider ${provider.name} failed: ${error.message}`);
+    }
+  }
+
+  tickets.sort((a, b) => a.price - b.price);
+  return { tickets, errors };
+}
+
+module.exports = { fetchTickets };
