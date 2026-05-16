@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const { Telegraf } = require('telegraf');
 const logger = require('./logger');
-const { fetchTickets } = require('./api');
+const { fetchTickets, PROVIDER_NAMES_FA } = require('./api');
 const {
   appendHistory,
   loadAlerts,
@@ -9,6 +9,7 @@ const {
   readHistory,
   updateAlert
 } = require('./configManager');
+const jalaali = require('jalaali-js');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHECK_INTERVAL_MINUTES = Math.max(1, Number(process.env.CHECK_INTERVAL_MINUTES || 10));
@@ -31,8 +32,28 @@ function formatPrice(value) {
   return Math.round(value).toLocaleString('fa-IR') + ' تومان';
 }
 
+function toJalali(dateStr) {
+  // dateStr format: YYYY-MM-DD
+  const parts = dateStr.split('-').map(Number);
+  const gy = parts[0], gm = parts[1], gd = parts[2];
+  try {
+    const j = jalaali.toJalaali(gy, gm, gd);
+    return j.jy + '/' + String(j.jm).padStart(2, '0') + '/' + String(j.jd).padStart(2, '0');
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return null;
+  // Try to extract HH:MM from various formats
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (match) return match[1].padStart(2, '0') + ':' + match[2];
+  return timeStr;
+}
+
 function routeLabel(alert) {
-  return `${alert.originName || alert.origin} → ${alert.destinationName || alert.destination} در تاریخ ${alert.jalaliDate || alert.date}`;
+  return `${alert.originName || alert.origin} ← ${alert.destinationName || alert.destination}`;
 }
 
 function addDays(date, days) {
@@ -123,48 +144,115 @@ function shouldNotify(alert, lowestPrice, historyRows, weeklyTrend) {
   };
 }
 
-function buildDirectLinks(alert, ticket) {
-  const date = alert.date;
-  const passengers = alert.passengers || 1;
-  const links = [];
-  if (ticket.deepLink) {
-    links.push({ label: 'لینک بلیط', url: ticket.deepLink });
+function buildTicketPage(ticket, alert, pageNum, totalPages) {
+  const lines = [];
+  const providerFa = ticket.providerFa || PROVIDER_NAMES_FA[ticket.provider] || ticket.provider;
+  const jalaliDate = toJalali(alert.date);
+  const timeStr = formatTime(ticket.departureTime);
+
+  lines.push(`✈️ ${providerFa}`);
+  lines.push(`💰 ${formatPrice(ticket.price)}`);
+
+  if (ticket.airlineName) lines.push(`🛫 ${ticket.airlineName}`);
+  if (ticket.flightNumber) lines.push(`🔢 پرواز: ${ticket.flightNumber}`);
+
+  if (timeStr) {
+    lines.push(`🕐 تاریخ و ساعت حرکت: ${jalaliDate} - ${timeStr}`);
+  } else {
+    lines.push(`📅 تاریخ سفر: ${jalaliDate}`);
   }
-  links.push(
-    { label: 'MrBilit', url: 'https://www.mrbilit.com/flight/search?origin=' + alert.origin + '&destination=' + alert.destination + '&date=' + date + '&adult=' + passengers },
-    { label: 'FlyToday', url: 'https://www.flytoday.ir/flight/search?departure=' + alert.origin.toLowerCase() + ',1&arrival=' + alert.destination.toLowerCase() + ',1&departureDate=' + date + '&adt=' + passengers + '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false' },
-    { label: 'Safarmarket', url: 'https://safarmarket.com/flights/c' + alert.origin + '-c' + alert.destination + '/' + date + '/0/economy/' + passengers + 'adults/0children/0infants' }
-  );
-  return links;
+
+  if (ticket.seats !== null && ticket.seats !== undefined) lines.push(`💺 صندلی باقی‌مانده: ${ticket.seats}`);
+
+  // Direct purchase link for this specific provider
+  const purchaseLink = buildPurchaseLink(ticket, alert);
+  if (purchaseLink) {
+    lines.push(`🔗 خرید: ${purchaseLink}`);
+  }
+
+  if (totalPages > 1) {
+    lines.push('', `📄 ${pageNum}/${totalPages}`);
+  }
+
+  return lines.join('\n');
 }
 
-function buildAlertMessage(alert, ticket, decision, errors) {
-  const lines = [
-    '🎫 هشدار قیمت بلیط',
+function buildPurchaseLink(ticket, alert) {
+  const date = alert.date;
+  const passengers = alert.passengers || 1;
+  const origin = alert.origin;
+  const dest = alert.destination;
+
+  switch (ticket.provider) {
+    case 'mrbilit-flight':
+      return 'https://www.mrbilit.com/flight/search?origin=' + origin + '&destination=' + dest + '&date=' + date + '&adult=' + passengers;
+    case 'flytoday-flight':
+      return 'https://www.flytoday.ir/flight/search?departure=' + origin.toLowerCase() + ',1&arrival=' + dest.toLowerCase() + ',1&departureDate=' + date + '&adt=' + passengers + '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false';
+    case 'safarmarket-flight-calendar':
+      return 'https://safarmarket.com/flights/c' + origin + '-c' + dest + '/' + date + '/0/economy/' + passengers + 'adults/0children/0infants';
+    case 'alibaba-flight':
+      return 'https://www.alibaba.ir/flight/' + origin + '-' + dest + '/' + date + '?adult=' + passengers;
+    case 'trip-flight':
+      return 'https://www.trip.ir/flight/' + origin + '-' + dest + '/' + date + '?passengers=' + passengers;
+    case 'eligasht-flight':
+      return 'https://www.eligasht.com/flight/search?origin=' + origin + '&destination=' + dest + '&date=' + date + '&passengers=' + passengers;
+    case 'snapptrip-flight':
+      return 'https://www.snapptrip.com/flights/' + origin + '-' + dest + '/' + date + '?adult=' + passengers;
+    default:
+      return ticket.deepLink || null;
+  }
+}
+
+function buildAlertMessage(alert, tickets, decision, errors) {
+  // For threshold mode with multiple tickets under threshold, show all
+  // Otherwise show the lowest one
+  const isThreshold = alert.mode === 'threshold';
+  const thresholdPrice = Number(alert.thresholdPrice || 0);
+
+  let ticketsToShow = [tickets[0]]; // default: lowest only
+  if (isThreshold && thresholdPrice > 0) {
+    // Show all tickets under threshold
+    ticketsToShow = tickets.filter(t => t.price <= thresholdPrice);
+  }
+
+  const totalPages = ticketsToShow.length;
+  const jalaliDate = toJalali(alert.date);
+  const route = routeLabel(alert);
+
+  // Build header
+  const header = [
+    '🎫 پیشنهاد بلیط',
     '',
-    '✈️ مسیر: ' + routeLabel(alert),
-    '🚍 نوع سفر: ' + (transportLabels[alert.transport] || alert.transport),
-    '💰 کمترین قیمت: ' + formatPrice(ticket.price),
-    '🏪 منبع: ' + ticket.provider,
-    '📋 عنوان: ' + ticket.title
+    `📍 مسیر: ${route}`,
+    `📅 تاریخ: ${jalaliDate}`,
+    `🚍 نوع سفر: ${transportLabels[alert.transport] || alert.transport}`,
   ];
-  if (ticket.departureTime) lines.push('🕐 زمان حرکت: ' + ticket.departureTime);
-  if (ticket.seats !== null && ticket.seats !== undefined) lines.push('💺 ظرفیت/صندلی: ' + ticket.seats);
-  if (decision.avg) lines.push('📊 میانگین تاریخی: ' + formatPrice(decision.avg));
-  if (decision.dropPercent) lines.push('📉 افت نسبت به میانگین: ' + decision.dropPercent.toFixed(1) + '٪');
-  if (decision.weeklyTrend?.avgDailyMin) {
-    lines.push('📈 میانگین کف قیمت ۷ روز آینده: ' + formatPrice(decision.weeklyTrend.avgDailyMin));
+
+  if (isThreshold) {
+    header.push(`💵 بودجه شما: ${formatPrice(thresholdPrice)}`);
   }
-  // Add direct links
-  const directLinks = buildDirectLinks(alert, ticket);
-  if (directLinks.length) {
-    lines.push('', '🔗 لینک مستقیم خرید:');
-    directLinks.forEach((link) => {
-      lines.push(link.label + ': ' + link.url);
-    });
+
+  if (decision.avg) header.push(`📊 میانگین تاریخی: ${formatPrice(decision.avg)}`);
+  if (decision.dropPercent) header.push(`📉 افت نسبت به میانگین: ${decision.dropPercent.toFixed(1)}٪`);
+
+  // Build ticket pages
+  const pages = ticketsToShow.map((ticket, i) => {
+    return buildTicketPage(ticket, alert, i + 1, totalPages);
+  });
+
+  // Build footer with failed providers
+  const footer = [];
+  if (errors.length) {
+    const failedNames = errors.map(e => PROVIDER_NAMES_FA[e.provider] || e.provider).join('، ');
+    footer.push('', '⚠️ منابع در دسترس نبودند: ' + failedNames);
   }
-  if (errors.length) lines.push('', '⚠️ Providerهای ناموفق: ' + errors.map((e) => e.provider).join('، '));
-  return lines.join('\n');
+
+  return {
+    header: header.join('\n'),
+    pages,
+    footer: footer.join('\n'),
+    totalPages
+  };
 }
 
 function buildNoProviderMessage(alert) {
@@ -185,11 +273,16 @@ function buildNoTicketMessage(alert, errors) {
     'مسیر: ' + routeLabel(alert),
     'نوع سفر: ' + (transportLabels[alert.transport] || alert.transport)
   ];
-  if (errors.length) lines.push('', 'منبع‌های ناموفق: ' + errors.map((e) => e.provider).join('، '));
+  if (errors.length) {
+    const failedNames = errors.map(e => PROVIDER_NAMES_FA[e.provider] || e.provider).join('، ');
+    lines.push('', 'منابع در دسترس نبودند: ' + failedNames);
+  }
   return lines.join('\n');
 }
 
 function buildCurrentPriceMessage(alert, ticket, historyRows, weeklyTrend) {
+  const providerFa = ticket.providerFa || PROVIDER_NAMES_FA[ticket.provider] || ticket.provider;
+  const jalaliDate = toJalali(alert.date);
   const weeklyLines = [];
   if (weeklyTrend?.avgDailyMin) {
     weeklyLines.push('میانگین کف قیمت ۷ روز آینده: ' + formatPrice(weeklyTrend.avgDailyMin));
@@ -204,9 +297,10 @@ function buildCurrentPriceMessage(alert, ticket, historyRows, weeklyTrend) {
     'مسیر: ' + routeLabel(alert),
     'نوع سفر: ' + (transportLabels[alert.transport] || alert.transport),
     'کمترین قیمت فعلی: ' + formatPrice(ticket.price),
-    'منبع: ' + ticket.provider,
-    'عنوان: ' + ticket.title,
-    ticket.departureTime ? 'زمان حرکت: ' + ticket.departureTime : null,
+    'منبع: ' + providerFa,
+    ticket.airlineName ? 'شرکت هواپیمایی: ' + ticket.airlineName : null,
+    ticket.flightNumber ? 'شماره پرواز: ' + ticket.flightNumber : null,
+    ticket.departureTime ? 'تاریخ و ساعت حرکت: ' + jalaliDate + ' - ' + formatTime(ticket.departureTime) : 'تاریخ سفر: ' + jalaliDate,
     ticket.seats !== null && ticket.seats !== undefined ? 'ظرفیت/صندلی: ' + ticket.seats : null,
     ...weeklyLines,
     '',
@@ -217,6 +311,27 @@ function buildCurrentPriceMessage(alert, ticket, historyRows, weeklyTrend) {
 function shouldSendServiceMessage(alert, field) {
   const lastAt = alert[field] ? new Date(alert[field]).getTime() : 0;
   return !lastAt || Date.now() - lastAt > 6 * 60 * 60 * 1000;
+}
+
+async function sendAlertMessages(bot, alert, tickets, decision, errors) {
+  const msg = buildAlertMessage(alert, tickets, decision, errors);
+
+  if (msg.totalPages === 1) {
+    // Single ticket - send one message
+    const fullMsg = msg.header + '\n\n' + msg.pages[0] + msg.footer;
+    await bot.telegram.sendMessage(alert.chatId, fullMsg, { disable_web_page_preview: true });
+  } else {
+    // Multiple tickets - send header first, then each ticket as separate message
+    await bot.telegram.sendMessage(alert.chatId, msg.header, { disable_web_page_preview: true });
+
+    for (const page of msg.pages) {
+      await bot.telegram.sendMessage(alert.chatId, page, { disable_web_page_preview: true });
+    }
+
+    if (msg.footer) {
+      await bot.telegram.sendMessage(alert.chatId, msg.footer, { disable_web_page_preview: true });
+    }
+  }
 }
 
 async function checkAlert(bot, alert, providers) {
@@ -281,9 +396,7 @@ async function checkAlert(bot, alert, providers) {
 
   if (!decision.ok) return;
 
-  await bot.telegram.sendMessage(alert.chatId, buildAlertMessage(alert, lowest, decision, errors), {
-    disable_web_page_preview: true
-  });
+  await sendAlertMessages(bot, alert, tickets, decision, errors);
   updateAlert(alert.id, { lastNotifiedAt: new Date().toISOString(), lastLowestPrice: lowest.price });
 }
 

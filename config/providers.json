@@ -90,18 +90,71 @@
     }
   },
   {
-    "name": "trip",
+    "name": "alibaba-flight",
+    "enabled": false,
+    "transports": ["flight"],
+    "responsePath": "data.flights",
+    "request": {
+      "method": "GET",
+      "url": "https://www.alibaba.ir/api/flight/search?origin={origin}&destination={destination}&date={date}&adult={passengers}&child=0&infant=0",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.alibaba.ir/flight/{origin}-{destination}/{date}",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8"
+      },
+      "timeoutMs": 20000
+    }
+  },
+  {
+    "name": "trip-flight",
     "enabled": false,
     "transports": ["flight"],
     "responsePath": "items",
     "request": {
       "method": "GET",
-      "url": "{TRIP_API_URL}?origin={origin}&destination={destination}&date={date}&passengers={passengers}",
+      "url": "https://www.trip.ir/api/flight/search?origin={origin}&destination={destination}&date={date}&passengers={passengers}",
       "headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json",
-        "Referer": "https://www.trip.ir/"
-      }
+        "Referer": "https://www.trip.ir/flight/{origin}-{destination}/{date}",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8"
+      },
+      "timeoutMs": 20000
+    }
+  },
+  {
+    "name": "eligasht-flight",
+    "enabled": false,
+    "transports": ["flight"],
+    "responsePath": "data",
+    "request": {
+      "method": "GET",
+      "url": "https://www.eligasht.com/api/flight/search?origin={origin}&destination={destination}&date={date}&passengers={passengers}",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.eligasht.com/flight/search?origin={origin}&destination={destination}&date={date}",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8"
+      },
+      "timeoutMs": 20000
+    }
+  },
+  {
+    "name": "snapptrip-flight",
+    "enabled": false,
+    "transports": ["flight"],
+    "responsePath": "data.flights",
+    "request": {
+      "method": "GET",
+      "url": "https://www.snapptrip.com/api/flight/search?origin={origin}&destination={destination}&date={date}&adult={passengers}",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.snapptrip.com/flights/{origin}-{destination}/{date}",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8"
+      },
+      "timeoutMs": 20000
     }
   }
 ]
