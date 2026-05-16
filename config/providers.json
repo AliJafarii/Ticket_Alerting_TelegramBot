@@ -6,14 +6,16 @@
     "responsePath": "Flights",
     "request": {
       "method": "POST",
-      "url": "https://flight.atighgasht.com/api/Flights",
+      "url": "https://www.mrbilit.com/api/flight/v2/search",
       "headers": {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json-patch+json",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJidXMiOiI0ZiIsInRybiI6IjE3Iiwic3JjIjoiMiJ9.vvpr9fgASvk7B7I4KQKCz-SaCmoErab_p3csIvULG1w",
-        "Origin": "https://mrbilit.com",
-        "Referer": "https://mrbilit.com/"
+        "Content-Type": "application/json",
+        "Origin": "https://www.mrbilit.com",
+        "Referer": "https://www.mrbilit.com/flight/search?origin={origin}&destination={destination}&date={date}&adult={passengers}",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       },
       "body": {
         "AdultCount": "{passengers}",
@@ -29,7 +31,8 @@
         ],
         "Baggage": true,
         "IncludeFlightsWithHigherCapacity": false
-      }
+      },
+      "timeoutMs": 20000
     }
   },
   {
@@ -41,15 +44,13 @@
       "method": "POST",
       "url": "https://www.flytoday.ir/api/gateway/V1/Flight/FareLookUp",
       "headers": {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "X-Proxy-Content-Type": "application/json",
-        "X-Proxy-Origin": "https://api.flytoday.ir/api",
-        "x-origin": "https://www.flytoday.ir",
-        "x-currency": "IRR",
         "Origin": "https://www.flytoday.ir",
-        "Referer": "https://www.flytoday.ir/flight/search?departure={originLower},1&arrival={destinationLower},1&departureDate={date}&adt={passengers}&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false"
+        "Referer": "https://www.flytoday.ir/flight/search?departure={originLower},1&arrival={destinationLower},1&departureDate={date}&adt={passengers}&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+        "X-Requested-With": "XMLHttpRequest"
       },
       "body": {
         "originLocationCode": "{origin}",
@@ -59,7 +60,8 @@
         "child": 0,
         "infant": 0,
         "lookUpType": 3
-      }
+      },
+      "timeoutMs": 20000
     }
   },
   {
@@ -70,9 +72,12 @@
       "method": "GET",
       "url": "https://safarmarket.com/api/flight/v3/calendar",
       "headers": {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-        "Referer": "https://safarmarket.com/"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/html, */*",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+        "Referer": "https://safarmarket.com/flights",
+        "X-Requested-With": "XMLHttpRequest",
+        "Cache-Control": "no-cache"
       },
       "query": {
         "org": "{origin}",
@@ -80,7 +85,8 @@
         "dst": "{destination}",
         "dstCity": true,
         "dom": true
-      }
+      },
+      "timeoutMs": 20000
     }
   },
   {
@@ -92,7 +98,7 @@
       "method": "GET",
       "url": "{TRIP_API_URL}?origin={origin}&destination={destination}&date={date}&passengers={passengers}",
       "headers": {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json",
         "Referer": "https://www.trip.ir/"
       }

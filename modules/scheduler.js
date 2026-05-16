@@ -11,7 +11,7 @@ const {
 } = require('./configManager');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHECK_INTERVAL_MINUTES = Math.max(1, Number(process.env.CHECK_INTERVAL_MINUTES || 30));
+const CHECK_INTERVAL_MINUTES = Math.max(1, Number(process.env.CHECK_INTERVAL_MINUTES || 10));
 const SMART_DROP_PERCENT = Math.max(1, Number(process.env.SMART_DROP_PERCENT || 20));
 const SMART_MIN_HISTORY = Math.max(2, Number(process.env.SMART_MIN_HISTORY || 6));
 const NOTIFY_COOLDOWN_MINUTES = Math.max(5, Number(process.env.NOTIFY_COOLDOWN_MINUTES || 180));
@@ -123,25 +123,47 @@ function shouldNotify(alert, lowestPrice, historyRows, weeklyTrend) {
   };
 }
 
+function buildDirectLinks(alert, ticket) {
+  const date = alert.date;
+  const passengers = alert.passengers || 1;
+  const links = [];
+  if (ticket.deepLink) {
+    links.push({ label: 'لینک بلیط', url: ticket.deepLink });
+  }
+  links.push(
+    { label: 'MrBilit', url: 'https://www.mrbilit.com/flight/search?origin=' + alert.origin + '&destination=' + alert.destination + '&date=' + date + '&adult=' + passengers },
+    { label: 'FlyToday', url: 'https://www.flytoday.ir/flight/search?departure=' + alert.origin.toLowerCase() + ',1&arrival=' + alert.destination.toLowerCase() + ',1&departureDate=' + date + '&adt=' + passengers + '&chd=0&inf=0&cabin=1&isDomestic=true&isAnyWhere=false' },
+    { label: 'Safarmarket', url: 'https://safarmarket.com/flights/c' + alert.origin + '-c' + alert.destination + '/' + date + '/0/economy/' + passengers + 'adults/0children/0infants' }
+  );
+  return links;
+}
+
 function buildAlertMessage(alert, ticket, decision, errors) {
   const lines = [
-    'هشدار قیمت بلیط',
+    '🎫 هشدار قیمت بلیط',
     '',
-    'مسیر: ' + routeLabel(alert),
-    'نوع سفر: ' + (transportLabels[alert.transport] || alert.transport),
-    'کمترین قیمت: ' + formatPrice(ticket.price),
-    'منبع: ' + ticket.provider,
-    'عنوان: ' + ticket.title
+    '✈️ مسیر: ' + routeLabel(alert),
+    '🚍 نوع سفر: ' + (transportLabels[alert.transport] || alert.transport),
+    '💰 کمترین قیمت: ' + formatPrice(ticket.price),
+    '🏪 منبع: ' + ticket.provider,
+    '📋 عنوان: ' + ticket.title
   ];
-  if (ticket.departureTime) lines.push('زمان حرکت: ' + ticket.departureTime);
-  if (ticket.seats !== null && ticket.seats !== undefined) lines.push('ظرفیت/صندلی: ' + ticket.seats);
-  if (decision.avg) lines.push('میانگین تاریخی: ' + formatPrice(decision.avg));
-  if (decision.dropPercent) lines.push('افت نسبت به میانگین: ' + decision.dropPercent.toFixed(1) + '٪');
+  if (ticket.departureTime) lines.push('🕐 زمان حرکت: ' + ticket.departureTime);
+  if (ticket.seats !== null && ticket.seats !== undefined) lines.push('💺 ظرفیت/صندلی: ' + ticket.seats);
+  if (decision.avg) lines.push('📊 میانگین تاریخی: ' + formatPrice(decision.avg));
+  if (decision.dropPercent) lines.push('📉 افت نسبت به میانگین: ' + decision.dropPercent.toFixed(1) + '٪');
   if (decision.weeklyTrend?.avgDailyMin) {
-    lines.push('میانگین کف قیمت ۷ روز آینده: ' + formatPrice(decision.weeklyTrend.avgDailyMin));
+    lines.push('📈 میانگین کف قیمت ۷ روز آینده: ' + formatPrice(decision.weeklyTrend.avgDailyMin));
   }
-  if (ticket.deepLink) lines.push('لینک: ' + ticket.deepLink);
-  if (errors.length) lines.push('', 'Providerهای ناموفق: ' + errors.map((e) => e.provider).join('، '));
+  // Add direct links
+  const directLinks = buildDirectLinks(alert, ticket);
+  if (directLinks.length) {
+    lines.push('', '🔗 لینک مستقیم خرید:');
+    directLinks.forEach((link) => {
+      lines.push(link.label + ': ' + link.url);
+    });
+  }
+  if (errors.length) lines.push('', '⚠️ Providerهای ناموفق: ' + errors.map((e) => e.provider).join('، '));
   return lines.join('\n');
 }
 
